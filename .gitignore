@@ -1,0 +1,8 @@
+node_modules/
+data/*.sqlite*
+*.log
+.env
+.DS_Store
+Thumbs.db
+.wwebjs_cache/
+.wwebjs_auth/

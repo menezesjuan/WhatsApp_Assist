@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Assist — Primeiro Atendimento Determinístico</title>
+  <!-- Bootstrap 5 CSS Framework -->
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="css/bootstrap-icons.min.css">
+  <!-- Custom Modern SaaS Theme -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- 1. Slim Modern Left Sidebar -->
+    <aside class="slim-sidebar" id="sidebar">
+      <div>
+        <div class="sidebar-brand-icon" id="sidebarLogo" title="WhatsApp Assist">
+          <i class="bi bi-whatsapp"></i>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav-list">
+        <a class="sidebar-nav-item active" data-view="dashboard" title="Dashboard">
+          <i class="bi bi-speedometer2"></i>
+        </a>
+        <a class="sidebar-nav-item" data-view="chat" title="WhatsApp Web Integrado">
+          <i class="bi bi-whatsapp"></i>
+        </a>
+        <a class="sidebar-nav-item" data-view="tasks" title="Central de Tasks (Kanban)">
+          <i class="bi bi-kanban"></i>
+          <span class="sidebar-badge" id="tasksBadge" style="display: none;">0</span>
+        </a>
+        <a class="sidebar-nav-item" data-view="automations" title="Fluxos de Atendimento">
+          <i class="bi bi-diagram-3"></i>
+        </a>
+        <a class="sidebar-nav-item" data-view="whatsapp" title="Conexão / QR Code">
+          <i class="bi bi-qr-code-scan"></i>
+        </a>
+        <a class="sidebar-nav-item" data-view="settings" title="Configurações">
+          <i class="bi bi-gear"></i>
+        </a>
+      </nav>
+
+      <div>
+        <div class="sidebar-avatar-btn" id="sidebarAvatar" title="Operador">
+          <i class="bi bi-person-fill"></i>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 2. Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Top App Header -->
+      <header class="top-header">
+        <div class="breadcrumb-nav">
+          <a href="#" onclick="window.switchView('dashboard'); return false;">WhatsApp Assist</a>
+          <span class="separator">/</span>
+          <span id="breadcrumbSection">Operação</span>
+          <span class="separator">/</span>
+          <span class="current" id="breadcrumbCurrent">Dashboard</span>
+        </div>
+
+        <div class="top-actions">
+          <!-- Operational Mode Toggle ("NUNCA ENVIA SOZINHO") -->
+          <button class="mode-pill-btn auto-mode" id="btnToggleMode" title="Clique para alternar o modo de resposta do robô">
+            <span id="modeIcon">🟢</span>
+            <span id="modeLabelText">Resposta Automática ao Receber</span>
+          </button>
+
+          <!-- WhatsApp Status Pill -->
+          <a class="wa-status-pill" id="headerWaStatus" href="#whatsapp" onclick="window.switchView('whatsapp'); return false;">
+            <span class="wa-dot" id="headerStatusDot"></span>
+            <span id="headerStatusText">Desconectado</span>
+          </a>
+
+          <!-- Quick Test Mode Button -->
+          <button class="btn btn-sm btn-outline-primary" id="quickTestBtn" title="Testar simulação determinística em memória">
+            <i class="bi bi-play-circle me-1"></i> Test Mode
+          </button>
+
+          <!-- Action Plus (+) Button (como na imagem de referência) -->
+          <button class="circle-action-btn" id="btnOpenFlowModalTop" title="Criar Novo Fluxo">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Subnav Horizontal Tabs Bar (como no exemplo de visual) -->
+      <div class="subnav-tabs-bar">
+        <a class="subnav-tab active" onclick="window.switchView('dashboard')">
+          <i class="bi bi-speedometer2"></i> Visão Geral
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('chat')">
+          <i class="bi bi-whatsapp text-success"></i> WhatsApp Web
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('tasks')">
+          <i class="bi bi-kanban"></i> Fila de Tasks (Kanban)
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('automations')">
+          <i class="bi bi-clock-history"></i> Linha do Tempo & Fluxos
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('whatsapp')">
+          <i class="bi bi-qr-code-scan"></i> Conexão / Sessão
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('settings')">
+          <i class="bi bi-shield-check"></i> Privacidade & Regras
+        </a>
+      </div>
+
+      <!-- App Main Content Body -->
+      <main class="app-content-body">
+        <!-- Privacy & Deterministic Safety Alert -->
+        <div class="privacy-safety-card">
+          <div class="d-flex align-items-center gap-3">
+            <div class="fs-4 text-primary"><i class="bi bi-shield-lock-fill"></i></div>
+            <div>
+              <h6>Princípio Determinístico: O sistema NUNCA envia mensagens por iniciativa própria</h6>
+              <p>O robô responde exclusivamente após o recebimento de mensagens de clientes e descarta o conteúdo recebido imediatamente da memória.</p>
+            </div>
+          </div>
+          <div>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill" id="safetyBadgeStatus">
+              <i class="bi bi-check-circle-fill me-1"></i> Envio Seguro Ativo
+            </span>
+          </div>
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- 1. DASHBOARD VIEW                                        -->
+        <!-- ======================================================== -->
+        <section class="view-section active" id="view-dashboard">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <h4 class="fw-bold mb-1">Métricas da Operação</h4>
+              <p class="text-secondary small mb-0">Monitoramento técnico dos atendimentos e eventos em tempo real.</p>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-secondary" id="refreshDashboardBtn">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card">
+                <div class="kpi-card-header">
+                  <span>WhatsApp</span>
+                  <i class="bi bi-whatsapp text-success" id="dashWaIcon"></i>
+                </div>
+                <div class="kpi-card-value text-secondary fs-4" id="kpiWaStatus">Desconectado</div>
+                <div class="kpi-card-sub" id="kpiWaDetail">Sessão inativa</div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card">
+                <div class="kpi-card-header">
+                  <span>Automações</span>
+                  <i class="bi bi-diagram-3 text-primary"></i>
+                </div>
+                <div class="kpi-card-value" id="kpiActiveFlows">0</div>
+                <div class="kpi-card-sub">Fluxos configurados</div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card" style="border-left: 4px solid var(--color-danger); cursor: pointer;" onclick="window.switchView('tasks')" title="Clique para ver a fila de tasks">
+                <div class="kpi-card-header">
+                  <span>Tasks Pendentes</span>
+                  <i class="bi bi-list-task text-danger"></i>
+                </div>
+                <div class="kpi-card-value text-danger" id="kpiPendingTasks">0</div>
+                <div class="kpi-card-sub text-primary fw-medium"><i class="bi bi-arrow-right-short"></i> Ver fila completa</div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card">
+                <div class="kpi-card-header">
+                  <span>Em Andamento</span>
+                  <i class="bi bi-robot text-info"></i>
+                </div>
+                <div class="kpi-card-value" id="kpiInProgress">0</div>
+                <div class="kpi-card-sub">Atendimentos no fluxo</div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card">
+                <div class="kpi-card-header">
+                  <span>Aguardando Humano</span>
+                  <i class="bi bi-headset text-warning"></i>
+                </div>
+                <div class="kpi-card-value" id="kpiWaitingHuman">0</div>
+                <div class="kpi-card-sub">Pausado para operador</div>
+              </div>
+            </div>
+
+            <div class="col-xl-2 col-md-4 col-sm-6">
+              <div class="kpi-card">
+                <div class="kpi-card-header">
+                  <span>Alertas Técnicos</span>
+                  <i class="bi bi-exclamation-triangle text-secondary"></i>
+                </div>
+                <div class="kpi-card-value" id="kpiErrors">0</div>
+                <div class="kpi-card-sub">Prevenção de loops</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prominent Pending Tasks Queue on Dashboard -->
+          <div class="saas-card mb-4 border-start border-4 border-danger shadow-sm">
+            <div class="saas-card-header bg-danger-subtle bg-opacity-25 py-3 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-circle-fill text-danger fs-5"></i>
+                <div>
+                  <h5 class="saas-card-title text-danger mb-0">Fila de Atendimento Humano (Tasks Pendentes)</h5>
+                  <div class="text-secondary small">Clientes aguardando sua resposta ou intervenção direta</div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger rounded-pill px-3 py-2" id="dashPendingTasksBadge">0 pendentes</span>
+                <button class="btn btn-sm btn-outline-danger" onclick="window.switchView('tasks')">
+                  Ver Central Completa <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table-saas mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Contato</th>
+                    <th>Motivo / Título</th>
+                    <th>Prioridade</th>
+                    <th>Horário</th>
+                    <th>Ações Rápidas</th>
+                  </tr>
+                </thead>
+                <tbody id="dashPendingTasksTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                      <i class="bi bi-check2-circle text-success fs-4 d-block mb-1"></i>
+                      Nenhuma task pendente de operador no momento. Todas as conversas estão no fluxo ou resolvidas.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Bottom Panels: Active Sessions in Memory & Events -->
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="saas-card h-100">
+                <div class="saas-card-header">
+                  <h5 class="saas-card-title">
+                    <i class="bi bi-people text-primary"></i> Atendimentos Ativos em Memória
+                  </h5>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="activeSessionsCount">0 contatos</span>
+                </div>
+                <div class="table-responsive">
+                  <table class="table-saas">
+                    <thead>
+                      <tr>
+                        <th>Contato</th>
+                        <th>Fluxo / Etapa</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="activeSessionsTableBody">
+                      <tr>
+                        <td colspan="4" class="text-center text-muted py-5">
+                          Nenhum contato em atendimento no momento.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="saas-card h-100">
+                <div class="saas-card-header">
+                  <h5 class="saas-card-title">
+                    <i class="bi bi-activity text-info"></i> Eventos Técnicos Recentes
+                  </h5>
+                  <span class="badge bg-light text-secondary border">Metadados Apenas</span>
+                </div>
+                <div id="eventsTimeline" style="max-height: 380px; overflow-y: auto;">
+                  <div class="text-center text-muted py-5">Nenhum evento registrado ainda.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- WHATSAPP WEB CONSOLE VIEW (CHAT INTEGRADO)               -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-chat">
+          <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div>
+              <h4 class="fw-bold mb-1">
+                <i class="bi bi-whatsapp text-success me-2"></i> WhatsApp Web Integrado
+              </h4>
+              <p class="text-secondary small mb-0">Atendimento ao cliente em tempo real conectado diretamente à sua sessão do WhatsApp Web.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill" id="waChatStatusPill">
+                <i class="bi bi-check-circle-fill me-1"></i> WhatsApp Conectado
+              </span>
+              <button class="btn btn-outline-secondary btn-sm" id="btnRefreshChats" title="Atualizar lista de conversas">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+              </button>
+            </div>
+          </div>
+
+          <div class="wa-web-app-container">
+            <!-- Left Chats List -->
+            <div class="wa-web-sidebar">
+              <div class="wa-web-sidebar-header">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                    <i class="bi bi-person-fill fs-5"></i>
+                  </div>
+                  <div>
+                    <div class="fw-bold small text-dark" id="waWebOperatorName">Atendente / Operador</div>
+                    <div class="text-muted small" style="font-size: 0.72rem;" id="waWebOperatorPhone">WhatsApp Web Ativo</div>
+                  </div>
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-sm btn-light border py-1 px-2" onclick="window.switchView('tasks')" title="Ir para Central de Tasks (Kanban)">
+                    <i class="bi bi-kanban"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Search Bar -->
+              <div class="wa-web-search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" class="wa-web-search-input" id="waSearchChatInput" placeholder="Pesquisar conversa ou cliente...">
+              </div>
+
+              <!-- Chats List -->
+              <div class="wa-web-chat-list" id="waWebChatList">
+                <div class="text-center text-muted py-5 small">
+                  <i class="bi bi-chat-dots fs-3 d-block mb-1 text-secondary"></i>
+                  Carregando conversas...
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Conversation Pane -->
+            <div class="wa-web-chat-pane" id="waWebChatPane">
+              <!-- Empty State when no chat is selected -->
+              <div class="wa-web-empty-state" id="waWebEmptyState">
+                <div class="rounded-circle bg-white p-4 shadow-sm mb-3 text-success">
+                  <i class="bi bi-whatsapp" style="font-size: 3.5rem;"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-1">WhatsApp Web Integrado</h5>
+                <p class="text-secondary small mb-3" style="max-width: 360px;">
+                  Selecione uma conversa ao lado ou clique em <strong>"Falar com cliente"</strong> em qualquer card do Kanban para abrir o chat instantâneo.
+                </p>
+                <button class="btn btn-primary btn-sm px-3" onclick="window.switchView('tasks')">
+                  <i class="bi bi-kanban me-1"></i> Ir para o Kanban de Tasks
+                </button>
+              </div>
+
+              <!-- Active Chat View (shown when contact selected) -->
+              <div class="d-flex flex-column h-100" id="waWebActiveChat" style="display: none !important;">
+                <!-- Chat Top Header -->
+                <div class="wa-web-chat-header">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="wa-chat-list-avatar-wrapper">
+                      <img src="" class="wa-chat-list-avatar" id="waActiveChatAvatar" style="display: none;">
+                      <div class="wa-chat-list-avatar fallback" id="waActiveChatAvatarFallback" style="background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);">WA</div>
+                    </div>
+                    <div>
+                      <div class="fw-bold text-dark fs-6 mb-0" id="waActiveChatName">Nome do Cliente</div>
+                      <div class="text-muted small font-monospace" id="waActiveChatPhone">+55 ...</div>
+                    </div>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-outline-success" id="btnCompleteActiveChatTask" title="Concluir atendimento desta task">
+                      <i class="bi bi-check-lg me-1"></i> Concluir Atendimento
+                    </button>
+                    <a class="btn btn-sm btn-outline-dark" id="btnExternalWaActiveLink" href="#" target="_blank" title="Abrir no WhatsApp Web em nova aba">
+                      <i class="bi bi-box-arrow-up-right me-1"></i> Abrir WhatsApp Externo
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Chat Messages Body -->
+                <div class="wa-web-chat-messages" id="waActiveChatMessages">
+                  <!-- Messages rendered here -->
+                </div>
+
+                <!-- Chat Bottom Input Bar -->
+                <div class="wa-web-input-bar">
+                  <input type="text" class="wa-web-msg-input" id="waActiveChatInput" placeholder="Digite uma mensagem para o cliente (Pressione Enter para enviar)..." autocomplete="off">
+                  <button class="btn btn-success px-3" id="btnSendActiveChatMessage" title="Enviar mensagem">
+                    <i class="bi bi-send-fill me-1"></i> Enviar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- 2. WHATSAPP CONNECTION VIEW                              -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-whatsapp">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <h4 class="fw-bold mb-1">Conexão WhatsApp Web</h4>
+              <p class="text-secondary small mb-0">Autenticação efêmera sem persistência de credenciais ou histórico em banco de dados.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-danger btn-sm" id="btnDisconnectWA">
+                <i class="bi bi-power me-1"></i> Desconectar Sessão
+              </button>
+              <button class="btn btn-primary btn-sm" id="btnConnectWA">
+                <i class="bi bi-qr-code me-1"></i> Iniciar / Conectar
+              </button>
+            </div>
+          </div>
+
+          <div class="row g-4 mb-4">
+            <!-- QR Code Card -->
+            <div class="col-lg-5">
+              <div class="saas-card text-center h-100">
+                <h5 class="saas-card-title justify-content-center mb-3">
+                  <i class="bi bi-qr-code-scan text-primary"></i> Autenticação por QR Code
+                </h5>
+                <p class="text-muted small mb-4">Escaneie o código com seu WhatsApp para vincular a sessão na aplicação.</p>
+
+                <div id="qrCodeContainer" class="d-flex align-items-center justify-content-center p-3 mb-3 bg-light rounded-3" style="min-height: 260px;">
+                  <div class="text-muted small" id="qrPlaceholder">
+                    <i class="bi bi-phone fs-1 d-block mb-2 text-secondary"></i>
+                    Clique em <strong>"Iniciar / Conectar"</strong> para gerar o QR Code.
+                  </div>
+                  <img id="qrImage" src="" alt="QR Code WhatsApp" class="img-fluid rounded" style="display: none; max-width: 250px;">
+                </div>
+
+                <div id="waStatusBadge" class="badge bg-secondary-subtle text-secondary fs-6 px-3 py-2 rounded-pill">
+                  Desconectado
+                </div>
+              </div>
+            </div>
+
+            <!-- Connection Status & Details Card -->
+            <div class="col-lg-7">
+              <div class="saas-card h-100">
+                <h5 class="saas-card-title mb-4">
+                  <i class="bi bi-info-circle text-primary"></i> Detalhes da Conexão
+                </h5>
+
+                <div class="row g-3 mb-4">
+                  <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <div class="text-secondary small fw-bold text-uppercase mb-1">Status Atual</div>
+                      <div class="fs-5 fw-bold text-dark" id="waStatusDetail">Desconectado</div>
+                    </div>
+                  </div>
+                  <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded-3">
+                      <div class="text-secondary small fw-bold text-uppercase mb-1">Aparelho / Operador</div>
+                      <div class="fs-5 fw-bold text-dark" id="waClientInfo">—</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label">Tipo de Adaptador</label>
+                  <select class="form-select" id="selectAdapterType">
+                    <option value="web">WhatsApp Web Real (whatsapp-web.js)</option>
+                    <option value="mock">Modo Simulador / Sandbox (Desenvolvimento)</option>
+                  </select>
+                  <div class="form-text">O modo simulador permite testar todo o motor de regras sem escanear QR Code com aparelho real.</div>
+                </div>
+
+                <!-- Sandbox Simulator Box -->
+                <div class="p-3 border rounded-3 bg-light">
+                  <h6 class="fw-bold mb-2 text-dark">
+                    <i class="bi bi-flask text-warning me-1"></i> Simulador de Mensagem Recebida (Sandbox)
+                  </h6>
+                  <p class="text-secondary small mb-3">Simule uma mensagem de cliente para validar a resposta do robô e a geração real de Tasks.</p>
+                  <div class="row g-2">
+                    <div class="col-sm-4">
+                      <input type="text" class="form-control form-control-sm" id="sandboxPhone" value="5511999999999" placeholder="Número">
+                    </div>
+                    <div class="col-sm-5">
+                      <input type="text" class="form-control form-control-sm" id="sandboxMessage" value="1" placeholder="Opção ou texto">
+                    </div>
+                    <div class="col-sm-3">
+                      <button class="btn btn-warning btn-sm w-100 fw-bold" id="btnSendSandboxMsg">
+                        Simular Entrada
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- 3. AUTOMATIONS & TIMELINE VIEW (ESTILO DA REFERÊNCIA)     -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-automations">
+          <!-- Flow Top Controls -->
+          <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+              <label class="form-label mb-0 fw-bold">Fluxo Ativo:</label>
+              <select class="form-select form-select-sm" id="flowSelectDropdown" style="width: 260px;">
+                <!-- Options populated via JS -->
+              </select>
+              <button class="btn btn-outline-primary btn-sm" id="btnEditFlowMetadata" title="Editar nome e configurações do fluxo">
+                <i class="bi bi-pencil me-1"></i> Configurações
+              </button>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-outline-secondary btn-sm" id="btnDuplicateFlow">
+                <i class="bi bi-copy me-1"></i> Duplicar
+              </button>
+              <button class="btn btn-outline-info btn-sm" id="btnOpenTestMode">
+                <i class="bi bi-play-circle me-1"></i> Testar Fluxo
+              </button>
+              <button class="btn btn-primary btn-sm" id="btnNewFlow">
+                <i class="bi bi-plus-lg me-1"></i> Novo Fluxo
+              </button>
+            </div>
+          </div>
+
+          <!-- Hero Timeline Stepper Card (EXATO ESTILO DA IMAGEM REFERÊNCIA) -->
+          <div class="saas-card mb-4">
+            <div class="saas-card-header">
+              <div>
+                <h5 class="saas-card-title" id="timelineFlowTitle">
+                  <i class="bi bi-clock-history text-primary"></i> Linha do Tempo do Atendimento
+                </h5>
+                <span class="text-muted small" id="currentFlowDescDisplay">Fluxo de triagem determinístico.</span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success-subtle text-success border border-success-subtle" id="currentFlowActiveBadge">Ativo</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" id="currentFlowDefaultBadge">Padrão</span>
+                <button class="btn btn-sm btn-outline-primary ms-2" onclick="window.addStepToCurrentFlow()">
+                  <i class="bi bi-plus-circle me-1"></i> Nova Etapa
+                </button>
+              </div>
+            </div>
+
+            <!-- Stepper Timeline Visualization -->
+            <div class="stepper-timeline-container">
+              <div class="stepper-timeline-track" id="visualStepperTrack">
+                <div class="stepper-timeline-progress"></div>
+
+                <!-- Node 1: Rocket Start -->
+                <div class="stepper-node-item">
+                  <span class="stepper-node-date active">Etapa 1</span>
+                  <div class="stepper-node-circle rocket">
+                    <i class="bi bi-rocket-takeoff-fill"></i>
+                  </div>
+                  <div class="stepper-node-title">Menu Principal</div>
+                  <div class="stepper-node-desc">Boas-vindas e opções</div>
+                  <div class="stepper-milestone-flag green">
+                    <i class="bi bi-flag-fill"></i>
+                    <span>Início</span>
+                  </div>
+                </div>
+
+                <!-- Node 2: Check Triagem -->
+                <div class="stepper-node-item">
+                  <span class="stepper-node-date active">Etapa 2</span>
+                  <div class="stepper-node-circle completed">
+                    <i class="bi bi-check-lg"></i>
+                  </div>
+                  <div class="stepper-node-title">Opção Orçamento</div>
+                  <div class="stepper-node-desc">Coleta de serviço</div>
+                </div>
+
+                <!-- Node 3: Check Suporte -->
+                <div class="stepper-node-item">
+                  <span class="stepper-node-date">Etapa 3</span>
+                  <div class="stepper-node-circle">
+                    <i class="bi bi-check-lg"></i>
+                  </div>
+                  <div class="stepper-node-title">Opção Suporte</div>
+                  <div class="stepper-node-desc">Dúvidas técnicas</div>
+                </div>
+
+                <!-- Node 4: Percentage or Completed -->
+                <div class="stepper-node-item">
+                  <span class="stepper-node-date">Etapa 4</span>
+                  <div class="stepper-node-circle">
+                    <i class="bi bi-check-lg"></i>
+                  </div>
+                  <div class="stepper-node-title">Informações</div>
+                  <div class="stepper-node-desc">Gerais</div>
+                </div>
+
+                <!-- Node 5: Final Task & Handoff -->
+                <div class="stepper-node-item">
+                  <span class="stepper-node-date">Final</span>
+                  <div class="stepper-node-circle percentage">
+                    100%
+                  </div>
+                  <div class="stepper-node-title">Handoff Humano</div>
+                  <div class="stepper-node-desc">Cria Task no painel</div>
+                  <div class="stepper-milestone-flag red">
+                    <i class="bi bi-flag-fill"></i>
+                    <span>Fila Operador</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stepper Timeline Footer Pill (estilo da imagem de referência) -->
+              <div class="stepper-timeline-footer">
+                <span class="badge rounded-pill bg-light text-dark border px-4 py-2">
+                  <i class="bi bi-clock text-primary me-2"></i> <strong>Tempo de Resposta:</strong> Instantâneo | <strong>Modo:</strong> Zero armazenamento de conversas
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mind Map Visual Flow Builder -->
+          <div class="saas-card mb-4">
+            <div class="saas-card-header">
+              <h5 class="saas-card-title">
+                <i class="bi bi-diagram-2 text-primary"></i> Mapa Mental de Decisão
+              </h5>
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" onclick="window.addStepToCurrentFlow()">
+                  <i class="bi bi-plus-lg me-1"></i> Adicionar Etapa
+                </button>
+              </div>
+            </div>
+
+            <!-- Mind Map Canvas -->
+            <div class="mindmap-container" id="mindmapViewport">
+              <svg class="mindmap-svg-canvas" id="mindmapSvgCanvas"></svg>
+              <div class="mindmap-tree" id="mindmapTree">
+                <!-- Dynamically populated via app.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Structured Steps List -->
+          <div class="saas-card">
+            <div class="saas-card-header">
+              <h5 class="saas-card-title">
+                <i class="bi bi-list-nested text-primary"></i> Etapas Estruturadas
+              </h5>
+              <button class="btn btn-sm btn-outline-primary" id="btnAddStepBtn">
+                <i class="bi bi-plus-circle me-1"></i> Nova Etapa
+              </button>
+            </div>
+            <div id="flowStepsContainer">
+              <!-- Dynamically populated via app.js -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- ======================================================== -->
+        <!-- 4. TASKS MANAGEMENT VIEW (KANBAN BOARD)                  -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-tasks">
+          <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+            <div>
+              <h4 class="fw-bold mb-1">
+                <i class="bi bi-kanban text-primary me-2"></i> Central de Atendimento (Kanban)
+              </h4>
+              <p class="text-secondary small mb-0">Evolução do atendimento: <strong>Mensagem pendente</strong> &gt;&gt; <strong>Em atendimento</strong> &gt;&gt; <strong>Serviço concluído</strong>.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <!-- View mode toggle: Kanban or Table -->
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-primary" id="btnViewKanban" title="Visualização em Cartões Kanban">
+                  <i class="bi bi-kanban me-1"></i> Kanban
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btnViewTable" title="Visualização em Lista/Tabela">
+                  <i class="bi bi-table me-1"></i> Tabela
+                </button>
+              </div>
+
+              <!-- Priority filter -->
+              <select class="form-select form-select-sm" id="taskPriorityFilter" style="width: auto;">
+                <option value="ALL">Todas Prioridades</option>
+                <option value="URGENT">Urgente</option>
+                <option value="HIGH">Alta</option>
+                <option value="MEDIUM">Média</option>
+                <option value="LOW">Baixa</option>
+              </select>
+
+              <button class="btn btn-outline-secondary btn-sm" id="refreshTasksBtn" title="Atualizar dados">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- KANBAN BOARD CONTAINER -->
+          <div class="kanban-board-container" id="kanbanBoardView">
+            <!-- Coluna 1: Mensagem pendente -->
+            <div class="kanban-column" id="kanbanColPending" ondragover="window.kanbanDragOver(event)" ondragleave="window.kanbanDragLeave(event)" ondrop="window.kanbanDrop(event, 'PENDING')">
+              <div class="kanban-column-header pending">
+                <div class="kanban-col-title">
+                  <i class="bi bi-chat-left-dots-fill text-warning"></i>
+                  <span>Mensagem pendente</span>
+                </div>
+                <span class="badge bg-warning text-dark rounded-pill px-2 py-1" id="kanbanBadgePending">0</span>
+              </div>
+              <div class="kanban-cards-list" id="kanbanListPending">
+                <div class="kanban-empty-state">
+                  <i class="bi bi-check2-circle fs-3 text-success d-block mb-1"></i>
+                  Nenhuma mensagem pendente.
+                </div>
+              </div>
+            </div>
+
+            <!-- Coluna 2: Em atendimento -->
+            <div class="kanban-column" id="kanbanColInProgress" ondragover="window.kanbanDragOver(event)" ondragleave="window.kanbanDragLeave(event)" ondrop="window.kanbanDrop(event, 'IN_PROGRESS')">
+              <div class="kanban-column-header inprogress">
+                <div class="kanban-col-title">
+                  <i class="bi bi-headset text-primary"></i>
+                  <span>Em atendimento</span>
+                </div>
+                <span class="badge bg-primary text-white rounded-pill px-2 py-1" id="kanbanBadgeInProgress">0</span>
+              </div>
+              <div class="kanban-cards-list" id="kanbanListInProgress">
+                <div class="kanban-empty-state">
+                  <i class="bi bi-inbox fs-3 text-secondary d-block mb-1"></i>
+                  Nenhum chat em atendimento.
+                </div>
+              </div>
+            </div>
+
+            <!-- Coluna 3: Serviço concluído -->
+            <div class="kanban-column" id="kanbanColResolved" ondragover="window.kanbanDragOver(event)" ondragleave="window.kanbanDragLeave(event)" ondrop="window.kanbanDrop(event, 'RESOLVED')">
+              <div class="kanban-column-header resolved">
+                <div class="kanban-col-title">
+                  <i class="bi bi-check2-all text-success"></i>
+                  <span>Serviço concluído</span>
+                </div>
+                <span class="badge bg-success text-white rounded-pill px-2 py-1" id="kanbanBadgeResolved">0</span>
+              </div>
+              <div class="kanban-cards-list" id="kanbanListResolved">
+                <div class="kanban-empty-state">
+                  <i class="bi bi-archive fs-3 text-secondary d-block mb-1"></i>
+                  Nenhum serviço concluído nesta sessão.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- OPTIONAL TABLE VIEW (TOGGLEABLE) -->
+          <div class="saas-card" id="tasksTableView" style="display: none;">
+            <div class="table-responsive">
+              <table class="table-saas">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Contato</th>
+                    <th>Mensagem / Motivo</th>
+                    <th>Prioridade</th>
+                    <th>Fluxo / Etapa</th>
+                    <th>Data / Hora</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="tasksTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center text-muted py-5">
+                      Nenhuma task encontrada.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ======================================================== -->
+        <!-- 5. SETTINGS VIEW                                         -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-settings">
+          <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <h4 class="fw-bold mb-1">Configurações do Sistema</h4>
+              <p class="text-secondary small mb-0">Parâmetros operacionais de envio, limites de tentativas e notificações.</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btnSaveSettings">
+              <i class="bi bi-check-lg me-1"></i> Salvar Configurações
+            </button>
+          </div>
+
+          <div class="row g-4">
+            <!-- Operational Mode & Behavior -->
+            <div class="col-lg-6">
+              <div class="saas-card h-100">
+                <h5 class="saas-card-title mb-4">
+                  <i class="bi bi-sliders text-primary"></i> Modo Operacional de Envio
+                </h5>
+
+                <div class="mb-4">
+                  <label class="form-label">Comportamento do Robô</label>
+                  <select class="form-select" id="setting_reply_mode">
+                    <option value="auto_reply">🟢 Resposta Automática ao Receber (Recomendado)</option>
+                    <option value="manual_click">🟡 Supervisão Total (NUNCA envia sem clique)</option>
+                  </select>
+                  <div class="form-text">
+                    No modo supervisão, as respostas ficam retidas no painel de Tasks e só são despachadas quando você clicar em "Responder".
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label class="form-label">Limite de Tentativas Inválidas</label>
+                  <input type="number" class="form-control" id="setting_max_invalid_attempts" value="3" min="1" max="10">
+                  <div class="form-text">Após este número de erros, o robô encerra e transfere para atendimento humano.</div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Mensagem de Esgotamento de Tentativas</label>
+                  <textarea class="form-control" id="setting_fallback_message" rows="2"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notifications & Audio -->
+            <div class="col-lg-6">
+              <div class="saas-card h-100">
+                <h5 class="saas-card-title mb-4">
+                  <i class="bi bi-bell text-primary"></i> Alertas & Notificações
+                </h5>
+
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="setting_notification_sound_enabled" checked>
+                  <label class="form-check-label fw-bold" for="setting_notification_sound_enabled">
+                    Som de Alerta para Novas Tasks
+                  </label>
+                  <div class="text-secondary small">Emite sinal sonoro suave quando um cliente for transferido para intervenção humana.</div>
+                </div>
+
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="setting_automation_enabled" checked>
+                  <label class="form-check-label fw-bold" for="setting_automation_enabled">
+                    Motor de Automação Ativo
+                  </label>
+                  <div class="text-secondary small">Quando desligado, nenhum fluxo automático será disparado.</div>
+                </div>
+
+                <div class="p-3 bg-light rounded-3">
+                  <h6 class="fw-bold mb-1"><i class="bi bi-lock-fill text-success me-1"></i> Garantia de Privacidade</h6>
+                  <p class="text-secondary small mb-0">Nenhum texto de mensagem, áudio ou anexo é salvo em disco ou banco SQLite. Tudo permanece estritamente em memória volátil.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODALS (BOOTSTRAP 5)                                     -->
+  <!-- ======================================================== -->
+
+  <!-- MODAL: Flow Edit -->
+  <div class="modal fade" id="flowModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="flowModalTitle">Configurar Fluxo</h5>
+          <button type="button" class="btn-close" id="flowModalClose" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="flowEditId">
+          <div class="mb-3">
+            <label class="form-label">Nome do Fluxo</label>
+            <input type="text" class="form-control" id="flowNameInput" placeholder="Ex: Primeiro Atendimento">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descrição</label>
+            <textarea class="form-control" id="flowDescInput" rows="2" placeholder="Objetivo deste fluxo..."></textarea>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="flowIsActive" checked>
+            <label class="form-check-label" for="flowIsActive">Fluxo Ativo</label>
+          </div>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="flowIsDefault">
+            <label class="form-check-label" for="flowIsDefault">Definir como Fluxo Padrão</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" id="flowModalCancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="flowModalSave">Salvar Fluxo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Step Edit -->
+  <div class="modal fade" id="stepModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="stepModalTitle">Configurar Etapa</h5>
+          <button type="button" class="btn-close" id="stepModalClose" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="stepEditId">
+          <input type="hidden" id="stepFlowId">
+
+          <div class="mb-3">
+            <label class="form-label">Nome da Etapa</label>
+            <input type="text" class="form-control" id="stepNameInput" placeholder="Ex: Menu Principal">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Mensagem de Resposta</label>
+            <textarea class="form-control" id="stepMessageInput" rows="3" placeholder="Mensagem enviada ao cliente nesta etapa..."></textarea>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="stepWaitInput" checked>
+                <label class="form-check-label" for="stepWaitInput">Aguardar Resposta do Cliente</label>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="stepAutoReply" checked>
+                <label class="form-check-label" for="stepAutoReply">Enviar Mensagem Automática</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-8">
+              <label class="form-label">Mensagem para Resposta Inválida</label>
+              <input type="text" class="form-control" id="stepInvalidReplyInput" value="Não consegui identificar sua opção. Digite uma opção válida.">
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Tentativas Máximas</label>
+              <input type="number" class="form-control" id="stepMaxAttemptsInput" value="3" min="1" max="10">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="stepIsFinal">
+                <label class="form-check-label" for="stepIsFinal">Encerrar Automação</label>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="stepCreateTask">
+                <label class="form-check-label" for="stepCreateTask">Gerar Task Humana</label>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="stepHandoff">
+                <label class="form-check-label" for="stepHandoff">Transferir Operador</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-sm-8">
+              <label class="form-label">Título da Task (se criada)</label>
+              <input type="text" class="form-control" id="stepTaskTitleInput" placeholder="Ex: Novo atendimento aguardando operador">
+            </div>
+            <div class="col-sm-4">
+              <label class="form-label">Prioridade da Task</label>
+              <select class="form-select" id="stepTaskPriorityInput">
+                <option value="LOW">Baixa</option>
+                <option value="MEDIUM" selected>Média</option>
+                <option value="HIGH">Alta</option>
+                <option value="URGENT">Urgente</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" id="stepModalCancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="stepModalSave">Salvar Etapa</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Option / Rule Edit -->
+  <div class="modal fade" id="optionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="optionModalTitle">Regra / Opção da Etapa</h5>
+          <button type="button" class="btn-close" id="optionModalClose" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="optionEditId">
+          <input type="hidden" id="optionStepId">
+
+          <div class="mb-3">
+            <label class="form-label">Rótulo / Descrição da Opção</label>
+            <input type="text" class="form-control" id="optionLabelInput" placeholder="Ex: 1 - Orçamento">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6" id="optionConditionTypeCol">
+              <label class="form-label">Tipo de Condição</label>
+              <select class="form-select" id="optionConditionType">
+                <option value="NUMERIC_OPTION">1, 2, 3... (Opção Numérica)</option>
+                <option value="KEYWORD">Palavra-chave (ex: orcamento, suporte)</option>
+                <option value="EXACT_MATCH">Texto Exato</option>
+                <option value="ANY_TEXT">Qualquer Texto (Resposta Livre)</option>
+                <option value="EMPTY">Mensagem Vazia</option>
+              </select>
+            </div>
+
+            <!-- Expected Value Input (Ocultado quando ANY_TEXT ou EMPTY) -->
+            <div class="col-sm-6" id="optionConditionValueCol">
+              <label class="form-label">Valor Esperado</label>
+              <input type="text" class="form-control" id="optionConditionValue" placeholder="Ex: 1 ou orcamento">
+              <div class="form-text" id="optionConditionHelp">Número esperado digitado pelo cliente.</div>
+            </div>
+
+            <!-- Informational Notice for ANY_TEXT / EMPTY -->
+            <div class="col-sm-6" id="optionConditionNoticeCol" style="display: none;">
+              <div class="alert alert-info py-2 px-3 mb-0 small" style="margin-top: 1.8rem;" id="optionConditionNoticeText">
+                💬 <strong>Qualquer Texto:</strong> Não é necessário valor esperado. Qualquer mensagem enviada pelo cliente acionará esta regra.
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">Ação</label>
+              <select class="form-select" id="optionActionType">
+                <option value="TRANSITION">Ir para Próxima Etapa</option>
+                <option value="HANDOFF">Transferir p/ Humano</option>
+                <option value="END_FLOW">Encerrar Automação</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Próxima Etapa</label>
+              <select class="form-select" id="optionNextStepSelect">
+                <!-- Injected via JS -->
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" id="optionModalCancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="optionModalSave">Salvar Opção</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Test Mode Simulator (Interactive Dry Run) -->
+  <div class="modal fade" id="testModeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-flask text-primary me-2"></i> Simulador Determinístico em Memória (Test Mode)
+          </h5>
+          <button type="button" class="btn-close" id="testModeClose" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary small mb-3">
+            Teste exatamente qual regra será acionada e qual resposta será emitida para qualquer entrada de cliente, sem efeitos colaterais.
+          </p>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label">Fluxo</label>
+              <select class="form-select" id="testFlowSelect"></select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Etapa a Testar</label>
+              <select class="form-select" id="testStepSelect"></select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Mensagem Digitada pelo Cliente</label>
+            <div class="input-group">
+              <input type="text" class="form-control" id="testMessageInput" placeholder="Ex: 1, 2, orçamento, dois, 1️⃣...">
+              <button class="btn btn-primary fw-bold" id="btnRunTestStep">
+                <i class="bi bi-play-fill me-1"></i> Simular Entrada
+              </button>
+            </div>
+          </div>
+
+          <!-- Result Box -->
+          <div id="testResultBox" class="p-3 bg-light rounded-3 border" style="display: none;">
+            <h6 class="fw-bold mb-3 text-dark">
+              <i class="bi bi-check-circle-fill text-success me-1"></i> Resultado da Avaliação Determinística:
+            </h6>
+            <div class="row g-2 small">
+              <div class="col-sm-6">
+                <strong>Regra Acionada:</strong> <span class="badge bg-primary text-white ms-1" id="resMatchedRule">—</span>
+              </div>
+              <div class="col-sm-6">
+                <strong>Próxima Etapa:</strong> <span class="badge bg-secondary text-white ms-1" id="resNextStep">—</span>
+              </div>
+              <div class="col-sm-6">
+                <strong>Encerrará Automação:</strong> <span id="resIsFinal" class="fw-bold ms-1">—</span>
+              </div>
+              <div class="col-sm-6">
+                <strong>Gerará Task Humana:</strong> <span id="resWillTask" class="fw-bold ms-1 text-danger">—</span>
+              </div>
+            </div>
+            <div class="mt-3 p-2 bg-white rounded border">
+              <div class="text-secondary small fw-bold mb-1">Mensagem que seria enviada:</div>
+              <div id="resOutboundMessage" class="small text-dark font-monospace">—</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="testModeDismiss">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Task Reply Modal -->
+  <div class="modal fade" id="taskReplyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-chat-left-text text-info me-2"></i> Responder Contato via WhatsApp
+          </h5>
+          <button type="button" class="btn-close" id="taskReplyModalClose" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="taskReplyIdInput">
+          <div class="p-3 bg-light rounded-3 mb-3 small">
+            <div><strong>Contato:</strong> <span id="taskReplyContactDisplay">—</span></div>
+            <div><strong>Motivo:</strong> <span id="taskReplyReasonDisplay">—</span></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mensagem Autorizada</label>
+            <textarea class="form-control" id="taskReplyTextInput" rows="4" placeholder="Digite sua resposta humana para o cliente..."></textarea>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="taskReplyResolveCheck" checked>
+            <label class="form-check-label" for="taskReplyResolveCheck">Marcar Task como resolvida após enviar</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" id="taskReplyModalCancel">Cancelar</button>
+          <button type="button" class="btn btn-info text-white fw-bold" id="taskReplyModalSend">
+            <i class="bi bi-send me-1"></i> Enviar via WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="js/bootstrap.bundle.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ws.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
