@@ -6,7 +6,10 @@
 const API_BASE = '/api';
 
 async function request(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
+  // Normalize endpoint to prevent double '/api/api' if caller passes '/api/...'
+  const cleanEndpoint = endpoint.startsWith('/api/') ? endpoint.slice(4) : (endpoint === '/api' ? '' : endpoint);
+  const formattedEndpoint = cleanEndpoint.startsWith('/') ? cleanEndpoint : `/${cleanEndpoint}`;
+  const url = `${API_BASE}${formattedEndpoint}`;
   const config = {
     headers: {
       'Content-Type': 'application/json',
@@ -29,6 +32,25 @@ async function request(endpoint, options = {}) {
 }
 
 const api = {
+  // Generic HTTP methods
+  get: (endpoint, options) => request(endpoint, { method: 'GET', ...options }),
+  post: (endpoint, body, options) => request(endpoint, {
+    method: 'POST',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...options
+  }),
+  put: (endpoint, body, options) => request(endpoint, {
+    method: 'PUT',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...options
+  }),
+  patch: (endpoint, body, options) => request(endpoint, {
+    method: 'PATCH',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    ...options
+  }),
+  delete: (endpoint, options) => request(endpoint, { method: 'DELETE', ...options }),
+
   // WhatsApp
   getWhatsAppStatus: () => request('/whatsapp/status'),
   connectWhatsApp: () => request('/whatsapp/connect', { method: 'POST' }),
