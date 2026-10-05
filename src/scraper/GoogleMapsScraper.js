@@ -128,10 +128,22 @@ class GoogleMapsScraper {
         '--lang=pt-BR,pt'
       ];
 
-      browser = await puppeteer.launch({
-        headless: true,
-        args: puppeteerArgs
-      });
+      // Try pipe launch first (immune to stdout/stderr WS endpoint buffering timeout on Windows daemons)
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          pipe: true,
+          args: puppeteerArgs,
+          timeout: 45000
+        });
+      } catch (pipeErr) {
+        logger.warn(`Puppeteer pipe launch fallback: ${pipeErr.message}`);
+        browser = await puppeteer.launch({
+          headless: true,
+          args: puppeteerArgs,
+          timeout: 45000
+        });
+      }
 
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 800 });

@@ -22,15 +22,10 @@ module.exports = {
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
-        '--no-zygote',
         '--disable-gpu',
         '--disable-extensions',
-        '--disable-background-networking',
         '--disable-default-apps',
-        '--disable-sync',
-        '--mute-audio',
-        '--metrics-recording-only',
-        '--js-flags=--max-old-space-size=384'
+        '--mute-audio'
       ]
     }
   },
