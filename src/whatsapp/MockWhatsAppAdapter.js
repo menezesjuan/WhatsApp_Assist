@@ -65,6 +65,18 @@ class MockWhatsAppAdapter extends WhatsAppAdapter {
     };
   }
 
+  async checkNumberHasWhatsApp(phone) {
+    if (!phone) return { checked: false, hasWhatsApp: false, error: 'Número inválido' };
+    const digits = phone.replace(/\D/g, '');
+    // In mock mode, if ends with '00' or is less than 10 digits -> false; otherwise true
+    const hasWhatsApp = !digits.endsWith('00') && digits.length >= 10;
+    return {
+      checked: true,
+      hasWhatsApp,
+      jid: hasWhatsApp ? `${digits.startsWith('55') ? digits : '55' + digits}@c.us` : null
+    };
+  }
+
   /**
    * Helper to simulate an incoming message from a test customer
    */

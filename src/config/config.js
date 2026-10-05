@@ -11,7 +11,7 @@ module.exports = {
   
   // WhatsApp settings
   whatsapp: {
-    adapterType: process.env.WA_ADAPTER || 'web', // 'web' or 'mock'
+    get adapterType() { return process.env.WA_ADAPTER || 'web'; }, // 'web' or 'mock'
     // Isolated temporary directory for Puppeteer/session files (never committed, never in SQLite)
     tempSessionDir: process.env.WA_TEMP_DIR || path.join(os.tmpdir(), 'wa-assist-session-temp'),
     puppeteer: {

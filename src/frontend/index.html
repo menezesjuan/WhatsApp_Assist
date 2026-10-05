@@ -35,6 +35,10 @@
         <a class="sidebar-nav-item" data-view="automations" title="Fluxos de Atendimento">
           <i class="bi bi-diagram-3"></i>
         </a>
+        <a class="sidebar-nav-item" data-view="leads" title="Captação Google Maps">
+          <i class="bi bi-geo-alt"></i>
+          <span class="sidebar-badge bg-primary" id="leadsBadge" style="display: none;">0</span>
+        </a>
         <a class="sidebar-nav-item" data-view="whatsapp" title="Conexão / QR Code">
           <i class="bi bi-qr-code-scan"></i>
         </a>
@@ -100,6 +104,9 @@
         </a>
         <a class="subnav-tab" onclick="window.switchView('automations')">
           <i class="bi bi-clock-history"></i> Linha do Tempo & Fluxos
+        </a>
+        <a class="subnav-tab" onclick="window.switchView('leads')">
+          <i class="bi bi-geo-alt text-primary"></i> Captação Google Maps
         </a>
         <a class="subnav-tab" onclick="window.switchView('whatsapp')">
           <i class="bi bi-qr-code-scan"></i> Conexão / Sessão
@@ -868,6 +875,183 @@
             </div>
           </div>
         </section>
+
+        <!-- ======================================================== -->
+        <!-- 6. LEADS PROSPECTING VIEW (GOOGLE MAPS & WHATSAPP CHECK) -->
+        <!-- ======================================================== -->
+        <section class="view-section" id="view-leads">
+          <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+            <div>
+              <h4 class="fw-bold mb-1">Captação de Clientes (Google Maps)</h4>
+              <p class="text-secondary small mb-0">Busca automatizada de estabelecimentos, extração de contatos e validação de WhatsApp ativo.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn btn-outline-secondary btn-sm" onclick="exportLeadsCsv()" title="Exportar dados para Excel/CSV">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar CSV
+              </button>
+              <button class="btn btn-outline-danger btn-sm" onclick="clearAllLeads()" title="Limpar todos os leads captados">
+                <i class="bi bi-trash me-1"></i> Limpar Lista
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="loadLeadsView()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+              </button>
+            </div>
+          </div>
+
+          <!-- Search Card Form -->
+          <div class="saas-card mb-4">
+            <h5 class="saas-card-title mb-3">
+              <i class="bi bi-search text-primary"></i> Nova Busca no Google Maps
+            </h5>
+            <form onsubmit="startLeadSearch(); return false;">
+              <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label fw-semibold">Nicho / Palavra-chave <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="leadSearchQuery" placeholder="Ex: Pet Shop, Clínica Odontológica, Restaurante" required>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Localização / Cidade / Bairro</label>
+                  <input type="text" class="form-control" id="leadSearchLocation" placeholder="Ex: Curitiba - PR, Pinheiros SP">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold">Limite</label>
+                  <select class="form-select" id="leadSearchMax">
+                    <option value="10">10 leads</option>
+                    <option value="20" selected>20 leads</option>
+                    <option value="30">30 leads</option>
+                    <option value="50">50 leads</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="leadSearchSubmitBtn">
+                    <i class="bi bi-search me-1"></i> Iniciar Captação
+                  </button>
+                </div>
+              </div>
+              <div class="mt-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" id="leadSearchCheckWa" checked>
+                  <label class="form-check-label small fw-semibold" for="leadSearchCheckWa">
+                    Validar se o telefone possui WhatsApp ativo na checagem
+                  </label>
+                </div>
+                <div class="small text-secondary">
+                  <i class="bi bi-shield-check text-success me-1"></i> <strong>Anti-Ban:</strong> Intervalos seguros e navegação humanizada.
+                </div>
+              </div>
+            </form>
+
+            <!-- Realtime Progress Bar (hidden by default) -->
+            <div id="leadSearchProgressContainer" class="mt-4 p-3 bg-light rounded-3" style="display: none;">
+              <div class="d-flex justify-content-between align-items-center mb-1 small">
+                <span class="fw-semibold text-primary" id="leadSearchProgressText">Extraindo dados do Google Maps...</span>
+                <span class="badge bg-primary-subtle text-primary border" id="leadSearchProgressStage">Em andamento</span>
+              </div>
+              <div class="progress" style="height: 10px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="leadSearchProgressBar" style="width: 10%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-xl-3">
+              <div class="metric-card">
+                <div class="metric-icon-box bg-primary-subtle text-primary">
+                  <i class="bi bi-buildings"></i>
+                </div>
+                <div>
+                  <div class="metric-value" id="leadsStatTotal">0</div>
+                  <div class="metric-label">Total de Leads</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <div class="metric-card">
+                <div class="metric-icon-box bg-success-subtle text-success">
+                  <i class="bi bi-whatsapp"></i>
+                </div>
+                <div>
+                  <div class="metric-value text-success" id="leadsStatWhatsApp">0</div>
+                  <div class="metric-label">Com WhatsApp Ativo</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <div class="metric-card">
+                <div class="metric-icon-box bg-danger-subtle text-danger">
+                  <i class="bi bi-telephone-x"></i>
+                </div>
+                <div>
+                  <div class="metric-value text-danger" id="leadsStatNoWhatsApp">0</div>
+                  <div class="metric-label">Sem WhatsApp</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6 col-xl-3">
+              <div class="metric-card">
+                <div class="metric-icon-box bg-info-subtle text-info">
+                  <i class="bi bi-globe"></i>
+                </div>
+                <div>
+                  <div class="metric-value text-info" id="leadsStatWebsite">0</div>
+                  <div class="metric-label">Possuem Website</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Toolbar -->
+          <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-outline-secondary btn-sm leads-filter-btn active" data-filter="all" onclick="setLeadsFilter('all')">
+                Todos
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm leads-filter-btn" data-filter="whatsapp" onclick="setLeadsFilter('whatsapp')">
+                <i class="bi bi-whatsapp text-success me-1"></i> Com WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm leads-filter-btn" data-filter="no_whatsapp" onclick="setLeadsFilter('no_whatsapp')">
+                <i class="bi bi-x-circle text-danger me-1"></i> Sem WhatsApp
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm leads-filter-btn" data-filter="website" onclick="setLeadsFilter('website')">
+                <i class="bi bi-globe text-primary me-1"></i> Com Site
+              </button>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+              <div class="input-group input-group-sm" style="width: 250px;">
+                <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="leadsSearchFilterInput" placeholder="Filtrar por nome ou fone..." oninput="loadLeadsView()">
+              </div>
+              <span class="badge bg-light text-secondary border px-2 py-2" id="leadsFilteredCount">0 resultado(s)</span>
+            </div>
+          </div>
+
+          <!-- Leads Data Table -->
+          <div class="saas-card p-0 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table-saas mb-0">
+                <thead>
+                  <tr>
+                    <th>Empresa / Estabelecimento</th>
+                    <th>Telefone</th>
+                    <th>WhatsApp</th>
+                    <th>Website</th>
+                    <th>Endereço</th>
+                    <th class="text-end">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="leadsTableBody">
+                  <tr>
+                    <td colspan="6" class="text-center py-5 text-secondary">
+                      Carregando leads...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   </div>
@@ -1190,6 +1374,7 @@
   <script src="js/whatsapp.js"></script>
   <script src="js/automations.js"></script>
   <script src="js/tasks.js"></script>
+  <script src="js/leads.js"></script>
   <script src="js/settings.js"></script>
   <script src="js/boot.js"></script>
 </body>

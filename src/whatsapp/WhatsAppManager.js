@@ -179,6 +179,13 @@ class WhatsAppManager {
     return null;
   }
 
+  async checkNumberHasWhatsApp(phone) {
+    if (!this.adapter || typeof this.adapter.checkNumberHasWhatsApp !== 'function') {
+      return { checked: false, hasWhatsApp: null, error: 'Adaptador não suporta validação de número' };
+    }
+    return await this.adapter.checkNumberHasWhatsApp(phone);
+  }
+
   // Simulation helper for sandbox/mock testing
   simulateIncoming(phone, text, name) {
     if (this.adapter instanceof MockWhatsAppAdapter) {

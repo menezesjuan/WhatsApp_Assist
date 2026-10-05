@@ -13,6 +13,7 @@ const automationRoutes = require('./api/automationRoutes');
 const taskRoutes = require('./api/taskRoutes');
 const settingsRoutes = require('./api/settingsRoutes');
 const statsRoutes = require('./api/statsRoutes');
+const leadRoutes = require('./api/leadRoutes');
 
 const logger = new SanitizedLogger('Server');
 
@@ -66,6 +67,7 @@ async function bootstrap() {
   app.use('/api/tasks', taskRoutes);
   app.use('/api/settings', settingsRoutes);
   app.use('/api/stats', statsRoutes);
+  app.use('/api/leads', leadRoutes);
 
   // Fallback route for SPA navigation (compatible with Express 5)
   app.use((req, res, next) => {

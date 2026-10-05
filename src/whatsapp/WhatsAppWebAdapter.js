@@ -311,6 +311,32 @@ class WhatsAppWebAdapter extends WhatsAppAdapter {
       return [];
     }
   }
+
+  async checkNumberHasWhatsApp(phone) {
+    if (!this.client || this.status !== WhatsAppAdapter.STATUS.CONNECTED) {
+      return { checked: false, hasWhatsApp: null, error: 'WhatsApp não está conectado' };
+    }
+    try {
+      const cleanDigits = phone.replace(/\D/g, '');
+      const numberId = await this.client.getNumberId(cleanDigits);
+      if (numberId && numberId._serialized) {
+        return {
+          checked: true,
+          hasWhatsApp: true,
+          jid: numberId._serialized,
+          user: numberId.user
+        };
+      }
+      return {
+        checked: true,
+        hasWhatsApp: false,
+        jid: null
+      };
+    } catch (err) {
+      logger.warn(`Error checking WhatsApp status for phone ${phone}: ${err.message}`);
+      return { checked: false, hasWhatsApp: null, error: err.message };
+    }
+  }
 }
 
 module.exports = WhatsAppWebAdapter;

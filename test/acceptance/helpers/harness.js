@@ -193,7 +193,11 @@ async function stop() {
  */
 function connectMock() {
   const WA = mod('whatsapp/WhatsAppAdapter');
-  const adapter = mod('whatsapp/WhatsAppManager').adapter;
+  const wm = mod('whatsapp/WhatsAppManager');
+  if (wm.getAdapterType() !== 'mock') {
+    wm.switchAdapter('mock');
+  }
+  const adapter = wm.adapter;
   adapter.clientInfo = { pushname: 'Operador Teste', phone: '5511999998888', platform: 'Teste' };
   if (!adapter.__acceptanceSpy) {
     adapter.__acceptanceSpy = true;

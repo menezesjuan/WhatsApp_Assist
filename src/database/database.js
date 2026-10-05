@@ -155,13 +155,42 @@ class DatabaseService {
       );
     `);
 
-    // Indexes for hot query paths (steps/options lookups, task listing, timeline)
+    // Leads / Prospecting table (Google Maps Scraper + WhatsApp Checker)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        search_term TEXT NOT NULL,
+        location TEXT,
+        business_name TEXT NOT NULL,
+        phone_raw TEXT,
+        phone_formatted TEXT,
+        has_whatsapp INTEGER, /* 1 = Sim, 0 = Não, NULL = Não verificado */
+        whatsapp_jid TEXT,
+        website_url TEXT,
+        address TEXT,
+        rating REAL,
+        reviews_count INTEGER,
+        maps_url TEXT,
+        status TEXT NOT NULL DEFAULT 'NEW', /* NEW, CONTACTED, CONVERTED, IGNORED */
+        notes TEXT,
+        task_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
+      );
+    `);
+
+    // Indexes for hot query paths (steps/options lookups, task listing, timeline, leads)
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_steps_automation ON automation_steps(automation_id, order_index);
       CREATE INDEX IF NOT EXISTS idx_options_step ON automation_options(step_id, order_index);
       CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status, id DESC);
       CREATE INDEX IF NOT EXISTS idx_tasks_contact ON tasks(contact_id);
       CREATE INDEX IF NOT EXISTS idx_events_type ON event_metadata(event_type);
+      CREATE INDEX IF NOT EXISTS idx_leads_search ON leads(search_term);
+      CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone_formatted);
+      CREATE INDEX IF NOT EXISTS idx_leads_whatsapp ON leads(has_whatsapp);
+      CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(created_at DESC);
     `);
 
     // Keep the append-only technical timeline bounded

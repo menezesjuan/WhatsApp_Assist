@@ -85,6 +85,15 @@ class WhatsAppAdapter {
   }
 
   /**
+   * Checks if a phone number is registered on WhatsApp
+   * @param {string} phone
+   * @returns {Promise<{ checked: boolean, hasWhatsApp: boolean|null, jid?: string, error?: string }>}
+   */
+  async checkNumberHasWhatsApp(phone) {
+    throw new Error('Method checkNumberHasWhatsApp() must be implemented.');
+  }
+
+  /**
    * Registers a listener for incoming messages
    * @param {Function} callback (msgPayload: { id, from, fromName, body, timestamp, isGroup }) => void
    */

@@ -84,6 +84,7 @@ function switchView(viewName) {
     chat: { section: 'Atendimento', current: 'WhatsApp Web Integrado' },
     tasks: { section: 'Atendimento', current: 'Central de Tasks (Kanban)' },
     automations: { section: 'Fluxos', current: 'Linha do Tempo & Automações' },
+    leads: { section: 'Prospecção', current: 'Captação Google Maps' },
     whatsapp: { section: 'Canais', current: 'Sessão WhatsApp Web' },
     settings: { section: 'Sistema', current: 'Configurações' }
   };
@@ -96,6 +97,7 @@ function switchView(viewName) {
   if (viewName === 'whatsapp') loadWhatsAppStatus();
   if (viewName === 'automations') loadAutomations();
   if (viewName === 'tasks') loadTasks();
+  if (viewName === 'leads') loadLeadsView();
   if (viewName === 'settings') loadSettings();
 }
 
