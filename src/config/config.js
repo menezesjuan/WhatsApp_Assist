@@ -4,10 +4,10 @@ const os = require('os');
 const dataDir = path.resolve(__dirname, '../../data');
 
 module.exports = {
-  port: parseInt(process.env.PORT, 10) || 3000,
-  host: process.env.HOST || '0.0.0.0',
+  get port() { return parseInt(process.env.PORT, 10) || 3000; },
+  get host() { return process.env.HOST || '127.0.0.1'; },
   dataDir,
-  dbPath: process.env.DB_PATH || path.join(dataDir, 'whatsapp_assist.sqlite'),
+  get dbPath() { return process.env.DB_PATH || path.join(dataDir, 'whatsapp_assist.sqlite'); },
   
   // WhatsApp settings
   whatsapp: {
@@ -23,7 +23,14 @@ module.exports = {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--mute-audio',
+        '--metrics-recording-only',
+        '--js-flags=--max-old-space-size=384'
       ]
     }
   },

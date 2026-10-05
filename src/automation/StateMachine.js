@@ -156,16 +156,13 @@ class StateMachine {
    * Manually hands off chat to human operator (operator taking over conversation)
    */
   takeover(contactId) {
-    const session = this.getSession(contactId);
-    if (session) {
-      session.status = StateMachine.STATES.HANDOFF;
-      session.waitingHuman = true;
-      session.lastActivity = Date.now();
-      this.loopDetector.reset(contactId);
-      logger.info('Operator took over session manually', { contactId });
-      return true;
-    }
-    return false;
+    const session = this.getOrCreateSession(contactId);
+    session.status = StateMachine.STATES.HANDOFF;
+    session.waitingHuman = true;
+    session.lastActivity = Date.now();
+    this.loopDetector.reset(contactId);
+    logger.info('Operator took over session manually', { contactId });
+    return true;
   }
 
   /**

@@ -164,7 +164,7 @@ router.get('/chats', async (req, res) => {
 // GET /api/whatsapp/chats/:contactId/messages - get conversation history
 router.get('/chats/:contactId/messages', async (req, res) => {
   const { contactId } = req.params;
-  const limit = parseInt(req.query.limit, 10) || 50;
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
 
   try {
     const messages = await WhatsAppManager.getChatMessages(contactId, limit);

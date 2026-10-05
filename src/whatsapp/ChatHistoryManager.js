@@ -3,6 +3,8 @@ const SanitizedLogger = require('../utils/SanitizedLogger');
 const logger = new SanitizedLogger('ChatHistoryManager');
 
 class ChatHistoryManager {
+  static MAX_CONTACTS = 200;
+
   constructor() {
     this.chats = new Map(); // contactId -> Array<Message>
   }
@@ -11,11 +13,18 @@ class ChatHistoryManager {
     if (!contactId || !message) return;
     const cleanId = contactId.trim();
 
-    if (!this.chats.has(cleanId)) {
-      this.chats.set(cleanId, []);
+    let list = this.chats.get(cleanId);
+    if (!list) {
+      list = [];
+      // Evict least recently used contact when over the cap
+      if (this.chats.size >= ChatHistoryManager.MAX_CONTACTS) {
+        this.chats.delete(this.chats.keys().next().value);
+      }
+    } else {
+      this.chats.delete(cleanId); // re-insert below to mark as most recent
     }
+    this.chats.set(cleanId, list);
 
-    const list = this.chats.get(cleanId);
     // Avoid exact duplicate IDs
     const fromMe = Boolean(message.fromMe);
     const direction = message.direction || (fromMe ? 'outbound' : 'inbound');

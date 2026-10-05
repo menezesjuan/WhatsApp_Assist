@@ -10,9 +10,11 @@ class DatabaseService {
   constructor(customPath) {
     this.dbPath = customPath || config.dbPath;
     this.db = null;
+    this._stmtCache = new Map();
   }
 
   init() {
+    this.dbPath = config.dbPath;
     if (this.db) return this;
 
     const dir = path.dirname(this.dbPath);
@@ -25,6 +27,7 @@ class DatabaseService {
 
     // Enforce WAL mode and foreign keys for performance and integrity
     this.db.exec('PRAGMA journal_mode = WAL;');
+    this.db.exec('PRAGMA synchronous = NORMAL;');
     this.db.exec('PRAGMA foreign_keys = ON;');
 
     this.runMigrations();
@@ -152,6 +155,21 @@ class DatabaseService {
       );
     `);
 
+    // Indexes for hot query paths (steps/options lookups, task listing, timeline)
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_steps_automation ON automation_steps(automation_id, order_index);
+      CREATE INDEX IF NOT EXISTS idx_options_step ON automation_options(step_id, order_index);
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_tasks_contact ON tasks(contact_id);
+      CREATE INDEX IF NOT EXISTS idx_events_type ON event_metadata(event_type);
+    `);
+
+    // Keep the append-only technical timeline bounded
+    this.db.exec(`
+      DELETE FROM event_metadata
+      WHERE id <= (SELECT COALESCE(MAX(id), 0) FROM event_metadata) - 5000;
+    `);
+
     logger.info('Database migrations applied successfully.');
   }
 
@@ -221,7 +239,7 @@ class DatabaseService {
       2,
       'Perfeito! Para solicitar um orçamento, descreva brevemente o serviço que você precisa. Logo entraremos em contato.',
       1, // wait_input
-      0, // auto_reply: 0 (Princípio "Não responder é melhor": aguarda descrição sem mandar nova mensagem)
+      1, // auto_reply: 1 (envia orientação e aguarda contato)
       null,
       1,
       'handoff',
@@ -240,7 +258,7 @@ class DatabaseService {
       3,
       'Para suporte, descreva o problema ou dificuldade que está enfrentando. Um atendente especializado irá continuar.',
       1, // wait_input
-      0, // auto_reply: 0
+      1, // auto_reply: 1
       null,
       1,
       'handoff',
@@ -292,9 +310,15 @@ class DatabaseService {
     logger.info('Default flow seeded successfully.');
   }
 
-  // Prepared helpers for clean decoupled usage across the application
+  // Prepared helpers for clean decoupled usage across the application.
+  // Statements are cached by SQL text to avoid re-parsing on every call.
   prepare(sql) {
-    return this.db.prepare(sql);
+    let stmt = this._stmtCache.get(sql);
+    if (!stmt) {
+      stmt = this.db.prepare(sql);
+      this._stmtCache.set(sql, stmt);
+    }
+    return stmt;
   }
 
   exec(sql) {
@@ -302,8 +326,11 @@ class DatabaseService {
   }
 
   close() {
+    this._stmtCache.clear();
     if (this.db) {
-      this.db.close();
+      try {
+        this.db.close();
+      } catch (_) {}
       this.db = null;
     }
   }

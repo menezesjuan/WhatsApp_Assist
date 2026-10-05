@@ -17,6 +17,11 @@ class AutomationEngine {
     this.idempotencyGuard = new IdempotencyGuard(config.safety.idempotencyTtlMs);
     this.contactCooldown = new Map();
     this.isProcessing = false;
+    this._settingsCache = null;
+    this._settingsCacheAt = 0;
+    // Periodic sweep keeps the debounce map from growing indefinitely
+    this._cooldownSweep = setInterval(() => this._sweepCooldown(), 60 * 1000);
+    if (this._cooldownSweep.unref) this._cooldownSweep.unref();
     this._initListeners();
   }
 
@@ -258,7 +263,7 @@ class AutomationEngine {
           flowName: session.flowName,
           stepId: step.id,
           stepName: step.name,
-          lastMessage: input
+          lastMessage: rawInput
         });
         this.stateMachine.transition(contactId, StateMachine.STATES.WAITING_HUMAN);
         return;
@@ -289,7 +294,7 @@ class AutomationEngine {
           flowName: session.flowName,
           stepId: nextStep.id,
           stepName: nextStep.name,
-          lastMessage: input
+          lastMessage: rawInput
         });
         return;
       }
@@ -345,7 +350,7 @@ class AutomationEngine {
           flowName: session.flowName,
           stepId: step.id,
           stepName: step.name,
-          lastMessage: input
+          lastMessage: rawInput
         });
 
         this.stateMachine.transition(contactId, StateMachine.STATES.WAITING_HUMAN);
@@ -424,12 +429,30 @@ class AutomationEngine {
     }
   }
 
+  _sweepCooldown() {
+    const limit = Date.now() - 60 * 1000;
+    for (const [id, ts] of this.contactCooldown) {
+      if (ts < limit) this.contactCooldown.delete(id);
+    }
+  }
+
+  /** Settings rarely change; cache for a few seconds to avoid a DB read per message. */
+  invalidateSettingsCache() {
+    this._settingsCache = null;
+  }
+
   _getSettings() {
+    const now = Date.now();
+    if (this._settingsCache && now - this._settingsCacheAt < 5000) {
+      return this._settingsCache;
+    }
     const rows = dbService.prepare('SELECT key, value FROM settings').all();
     const map = {};
     for (const r of rows) {
       map[r.key] = r.value;
     }
+    this._settingsCache = map;
+    this._settingsCacheAt = now;
     return map;
   }
 }

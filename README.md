@@ -293,7 +293,7 @@ WhatsApp_Assist/
 │   │   └── WhatsAppWebAdapter.js       # Implementação real com whatsapp-web.js
 │   └── frontend/                       # Interface do usuário (Single Page Application)
 │       ├── css/                        # Estilos SaaS e Bootstrap 5
-│       ├── js/                         # Controladores (api.js, ws.js, app.js)
+│       ├── js/                         # Controladores (api.js, ws.js, core.js, utils.js e um arquivo por tela: dashboard, chat, whatsapp, automations, tasks, settings; boot.js carrega por último)
 │       └── index.html                  # Estrutura HTML da aplicação
 ├── test/                               # Suíte de testes automatizados
 └── package.json                        # Metadados e dependências do projeto

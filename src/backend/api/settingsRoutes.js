@@ -36,10 +36,19 @@ router.put('/', (req, res) => {
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
   `);
 
-  for (const [key, val] of Object.entries(updates)) {
-    const stringVal = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val);
-    upsert.run(key, stringVal);
+  dbService.exec('BEGIN');
+  try {
+    for (const [key, val] of Object.entries(updates)) {
+      const stringVal = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val);
+      upsert.run(key, stringVal);
+    }
+    dbService.exec('COMMIT');
+  } catch (err) {
+    dbService.exec('ROLLBACK');
+    logger.error(`Failed to save settings: ${err.message}`);
+    return res.status(500).json({ success: false, error: err.message });
   }
+  require('../../automation/AutomationEngine').invalidateSettingsCache();
 
   logger.info('System settings updated successfully.');
   res.json({ success: true, message: 'Configurações salvas com sucesso.' });

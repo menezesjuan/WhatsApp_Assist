@@ -119,8 +119,7 @@ class WhatsAppWebAdapter extends WhatsAppAdapter {
         await this.disconnect();
       });
 
-      // Unified Message Listener: handles both 'message' and 'message_create' with deduplication
-      this.client.on('message', (msg) => this._handleMessage(msg));
+      // 'message_create' fires for both inbound and outbound messages; 'message' would only duplicate it
       this.client.on('message_create', (msg) => this._handleMessage(msg));
 
       await this.client.initialize();

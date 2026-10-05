@@ -42,8 +42,8 @@ router.get('/:id', (req, res) => {
 // POST /api/automations - create new flow
 router.post('/', (req, res) => {
   const { name, description = '', is_active = 1, is_default = 0 } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).json({ success: false, error: 'Nome do fluxo é obrigatório.' });
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ success: false, error: 'Nome do fluxo é obrigatório e deve ser texto.' });
   }
 
   if (is_default) {
@@ -69,6 +69,12 @@ router.put('/:id', (req, res) => {
   const existing = dbService.prepare('SELECT * FROM automations WHERE id = ?').get(flowId);
   if (!existing) {
     return res.status(404).json({ success: false, error: 'Fluxo não encontrado.' });
+  }
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Nome do fluxo é obrigatório e deve ser texto não vazio.' });
+    }
   }
 
   if (is_default) {
@@ -161,9 +167,16 @@ router.post('/:id/duplicate', (req, res) => {
 
 // --- Steps Management ---
 
+// --- Steps Management ---
+
 // POST /api/automations/:id/steps - create step
 router.post('/:id/steps', (req, res) => {
   const flowId = parseInt(req.params.id, 10);
+  const flow = dbService.prepare('SELECT id FROM automations WHERE id = ?').get(flowId);
+  if (!flow) {
+    return res.status(404).json({ success: false, error: 'Fluxo não encontrado.' });
+  }
+
   const {
     name, order_index = 0, message_text = '', wait_input = 1, auto_reply = 1,
     invalid_reply_text = 'Opção não reconhecida.', max_attempts = 3,
@@ -171,8 +184,17 @@ router.post('/:id/steps', (req, res) => {
     task_title = '', task_priority = 'MEDIUM', handoff_human = 0
   } = req.body;
 
-  if (!name || !name.trim()) {
-    return res.status(400).json({ success: false, error: 'Nome da etapa é obrigatório.' });
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ success: false, error: 'Nome da etapa é obrigatório e deve ser texto.' });
+  }
+
+  if (max_attempts !== undefined && (typeof max_attempts !== 'number' || !Number.isInteger(max_attempts) || max_attempts <= 0)) {
+    return res.status(400).json({ success: false, error: 'max_attempts deve ser um número inteiro maior que zero.' });
+  }
+
+  const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  if (task_priority && !validPriorities.includes(task_priority)) {
+    return res.status(400).json({ success: false, error: 'Prioridade da tarefa inválida.' });
   }
 
   const result = dbService.prepare(`
@@ -190,8 +212,8 @@ router.post('/:id/steps', (req, res) => {
   const stepId = Number(result.lastInsertRowid);
 
   // If flow has no initial_step_id, set this one
-  const flow = dbService.prepare('SELECT initial_step_id FROM automations WHERE id = ?').get(flowId);
-  if (flow && !flow.initial_step_id) {
+  const currentFlow = dbService.prepare('SELECT initial_step_id FROM automations WHERE id = ?').get(flowId);
+  if (currentFlow && !currentFlow.initial_step_id) {
     dbService.prepare('UPDATE automations SET initial_step_id = ? WHERE id = ?').run(stepId, flowId);
   }
 
@@ -211,6 +233,19 @@ router.put('/steps/:stepId', (req, res) => {
     invalid_reply_text, max_attempts, on_max_attempts_action,
     is_final, create_task, task_title, task_priority, handoff_human
   } = req.body;
+
+  if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+    return res.status(400).json({ success: false, error: 'Nome da etapa deve ser texto não vazio.' });
+  }
+
+  if (max_attempts !== undefined && (typeof max_attempts !== 'number' || !Number.isInteger(max_attempts) || max_attempts <= 0)) {
+    return res.status(400).json({ success: false, error: 'max_attempts deve ser um número inteiro maior que zero.' });
+  }
+
+  const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  if (task_priority !== undefined && !validPriorities.includes(task_priority)) {
+    return res.status(400).json({ success: false, error: 'Prioridade da tarefa inválida.' });
+  }
 
   dbService.prepare(`
     UPDATE automation_steps SET
@@ -256,6 +291,10 @@ router.delete('/steps/:stepId', (req, res) => {
     return res.status(404).json({ success: false, error: 'Etapa não encontrada.' });
   }
 
+  // Clear references from options and flow initial step
+  dbService.prepare('UPDATE automation_options SET next_step_id = NULL WHERE next_step_id = ?').run(stepId);
+  dbService.prepare('UPDATE automations SET initial_step_id = NULL WHERE initial_step_id = ?').run(stepId);
+
   dbService.prepare('DELETE FROM automation_steps WHERE id = ?').run(stepId);
   res.json({ success: true, message: 'Etapa excluída com sucesso.' });
 });
@@ -265,15 +304,33 @@ router.delete('/steps/:stepId', (req, res) => {
 // POST /api/automations/steps/:stepId/options - add option
 router.post('/steps/:stepId/options', (req, res) => {
   const stepId = parseInt(req.params.stepId, 10);
+  const step = dbService.prepare('SELECT id FROM automation_steps WHERE id = ?').get(stepId);
+  if (!step) {
+    return res.status(404).json({ success: false, error: 'Etapa não encontrada.' });
+  }
+
   let { condition_type, condition_value, next_step_id = null, action_type = 'TRANSITION', label = '', order_index = 0 } = req.body;
 
-  if (!condition_type) {
-    return res.status(400).json({ success: false, error: 'Tipo da condição é obrigatório.' });
+  const validTypes = ['EXACT_MATCH', 'KEYWORD', 'NUMERIC_OPTION', 'ANY_TEXT', 'EMPTY'];
+  if (!condition_type || !validTypes.includes(condition_type)) {
+    return res.status(400).json({ success: false, error: 'Tipo da condição é obrigatório e deve ser válido.' });
+  }
+
+  const validActions = ['TRANSITION', 'END_FLOW', 'HANDOFF'];
+  if (action_type && !validActions.includes(action_type)) {
+    return res.status(400).json({ success: false, error: 'Tipo de ação inválido.' });
+  }
+
+  if (next_step_id) {
+    const nextStep = dbService.prepare('SELECT id FROM automation_steps WHERE id = ?').get(next_step_id);
+    if (!nextStep) {
+      return res.status(400).json({ success: false, error: 'Etapa de destino inexistente.' });
+    }
   }
 
   // ANY_TEXT matches any message, no expected value is required
   if (condition_type === 'ANY_TEXT') {
-    condition_value = (condition_value && condition_value.trim()) ? condition_value.trim() : '*';
+    condition_value = (condition_value && String(condition_value).trim()) ? String(condition_value).trim() : '*';
   } else if (condition_type === 'EMPTY') {
     condition_value = '';
   } else if (condition_value === undefined || condition_value === null || !String(condition_value).trim()) {
@@ -298,9 +355,26 @@ router.put('/options/:optionId', (req, res) => {
 
   let { condition_type, condition_value, next_step_id, action_type, label, order_index } = req.body;
 
+  const validTypes = ['EXACT_MATCH', 'KEYWORD', 'NUMERIC_OPTION', 'ANY_TEXT', 'EMPTY'];
+  if (condition_type !== undefined && !validTypes.includes(condition_type)) {
+    return res.status(400).json({ success: false, error: 'Tipo de condição inválido.' });
+  }
+
+  const validActions = ['TRANSITION', 'END_FLOW', 'HANDOFF'];
+  if (action_type !== undefined && !validActions.includes(action_type)) {
+    return res.status(400).json({ success: false, error: 'Tipo de ação inválido.' });
+  }
+
+  if (next_step_id) {
+    const nextStep = dbService.prepare('SELECT id FROM automation_steps WHERE id = ?').get(next_step_id);
+    if (!nextStep) {
+      return res.status(400).json({ success: false, error: 'Etapa de destino inexistente.' });
+    }
+  }
+
   const targetType = condition_type || opt.condition_type;
   if (targetType === 'ANY_TEXT') {
-    condition_value = (condition_value && condition_value.trim()) ? condition_value.trim() : '*';
+    condition_value = (condition_value && String(condition_value).trim()) ? String(condition_value).trim() : '*';
   } else if (targetType === 'EMPTY') {
     condition_value = '';
   }
@@ -330,6 +404,11 @@ router.put('/options/:optionId', (req, res) => {
 // DELETE /api/automations/options/:optionId - delete option
 router.delete('/options/:optionId', (req, res) => {
   const optionId = parseInt(req.params.optionId, 10);
+  const opt = dbService.prepare('SELECT id FROM automation_options WHERE id = ?').get(optionId);
+  if (!opt) {
+    return res.status(404).json({ success: false, error: 'Opção não encontrada.' });
+  }
+
   dbService.prepare('DELETE FROM automation_options WHERE id = ?').run(optionId);
   res.json({ success: true, message: 'Opção excluída com sucesso.' });
 });
@@ -339,6 +418,18 @@ router.post('/test-simulate', (req, res) => {
   const { flowId, stepId, input } = req.body;
   if (!flowId) {
     return res.status(400).json({ success: false, error: 'ID do fluxo é obrigatório.' });
+  }
+
+  const flow = dbService.prepare('SELECT id FROM automations WHERE id = ?').get(flowId);
+  if (!flow) {
+    return res.status(404).json({ success: false, error: 'Fluxo não encontrado.' });
+  }
+
+  if (stepId) {
+    const step = dbService.prepare('SELECT id FROM automation_steps WHERE id = ? AND automation_id = ?').get(stepId, flowId);
+    if (!step) {
+      return res.status(404).json({ success: false, error: 'Etapa não encontrada no fluxo.' });
+    }
   }
 
   try {

@@ -17,9 +17,15 @@ class NotificationManager {
       this.wsClients.delete(ws);
       logger.info(`WebSocket client disconnected. Active connections: ${this.wsClients.size}`);
     });
+
+    ws.on('error', (err) => {
+      logger.warn(`WebSocket client error: ${err.message}`);
+      this.wsClients.delete(ws);
+    });
   }
 
   broadcast(type, data = {}) {
+    if (this.wsClients.size === 0) return;
     const payload = JSON.stringify({
       type,
       data,

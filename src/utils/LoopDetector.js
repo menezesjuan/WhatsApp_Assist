@@ -32,6 +32,10 @@ class LoopDetector {
       stepId: String(nextStepId),
       timestamp: Date.now()
     });
+    // Only the last few steps matter for cycle detection; `count` tracks the total
+    if (record.transitions.length > 10) {
+      record.transitions.shift();
+    }
 
     // 1. Max total transitions check
     if (record.count > this.maxTransitions) {
